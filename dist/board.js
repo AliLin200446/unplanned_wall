@@ -3,7 +3,7 @@ import * as THREE from './vendor/three.module.js';
 export function createBoardSurface(board){
  const copies=[],loader=new THREE.TextureLoader();
  function texture(path){const t=loader.load(path,loaded=>{for(const copy of copies)if(copy.source===loaded.source)copy.needsUpdate=true;});t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;return t;}
- const backing=texture('assets/board-backing.png');
+ const backing=texture('assets/board-history.png');
  const back=new THREE.Mesh(new THREE.PlaneGeometry(3.82,5.12),new THREE.MeshStandardMaterial({map:backing,roughness:.98,bumpMap:backing,bumpScale:.008}));back.position.z=.075;back.receiveShadow=true;board.add(back);
  const atlas=texture('assets/notice-papers.png');
  function paperMap(cell){const t=atlas.clone();t.repeat.set(.496,.496);t.offset.set((cell%2)*.5+.002,cell<2?.502:.002);copies.push(t);if(atlas.image)t.needsUpdate=true;return t;}
@@ -23,6 +23,17 @@ export function createBoardSurface(board){
   return group;
  }
  function tape(parent,x,y,w,h,age=0,rot=0,z=.009){const color=age>.5?'#a89a65':'#d4d5bf';const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h,2,2),new THREE.MeshStandardMaterial({color,transparent:true,opacity:age>.5?.35:.19,roughness:age>.5?.74:.27,side:THREE.DoubleSide,depthWrite:false}));m.position.set(x,y,z);m.rotation.z=rot;m.receiveShadow=true;parent.add(m);return m;}
+ const relic=options=>{const group=paper(options);group.children[0].material.color.set(options.cell===0?'#76574a':'#99958a');return group;};
+ // Earlier generations stay below every surviving notice. These are torn bodies,
+ // not an extra scatter layer; embedded fibers and paint-over live in the backing.
+ relic({x:-1.13,y:1.55,w:1.51,h:1.96,cell:2,rotation:-.034,age:.96,z:.083,cut:[[0,.13],[.12,.21],[.17,.60],[.30,.67],[.32,.85],[.76,.89],[.86,.94],[1,.91],[1,1],[0,1]]});
+ relic({x:-.80,y:.31,w:.86,h:1.32,cell:1,rotation:.015,age:.98,z:.082,cut:[[0,0],[.22,.02],[.24,.18],[.39,.23],[.33,.40],[.52,.49],[.41,.63],[.45,.85],[.31,1],[0,1]]});
+ relic({x:1.16,y:.13,w:1.17,h:1.53,cell:0,rotation:.045,age:.94,z:.082,cut:[[.60,0],[1,0],[1,1],[.82,.97],[.79,.76],[.72,.69],[.79,.52],[.66,.47],[.73,.25],[.59,.17]]});
+ relic({x:.71,y:.13,w:1.64,h:1.95,cell:1,rotation:.019,age:.91,z:.086,cut:[[0,0],[1,0],[1,.26],[.94,.32],[.92,.19],[.79,.23],[.78,.11],[.55,.17],[.41,.09],[.26,.17],[.19,.10],[.10,.27],[0,.31]]});
+ relic({x:.78,y:-1.98,w:1.45,h:1.02,cell:2,rotation:-.021,age:.97,z:.084,cut:[[0,0],[1,0],[1,.92],[.88,.88],[.83,.68],[.72,.71],[.68,.44],[.57,.38],[.47,.55],[.40,.49],[.32,.22],[.20,.27],[.09,.19],[0,.32]]});
+ relic({x:-1.05,y:-1.77,w:1.40,h:.91,cell:3,rotation:.025,age:.99,z:.084,cut:[[0,.13],[.27,.19],[.35,.08],[.49,.14],[.58,.01],[.74,.12],[1,.04],[1,.37],[.87,.40],[.64,.30],[.43,.46],[.29,.32],[.11,.47],[0,.42]]});
+ // Tape that outlived the paper: aged strips cross older remnants and empty glue.
+ for(const [x,y,w,h,rot] of [[-1.04,2.29,.69,.085,-.025],[-1.62,.54,.13,.41,.03],[-.39,.33,.52,.11,-.017],[.21,1.48,.42,.09,.014],[1.52,-.73,.14,.37,-.04],[.28,-1.09,.78,.085,.022],[-1.41,-2.13,.48,.095,.021],[1.14,-2.34,.58,.095,-.012]])tape(board,x,y,w,h,.97,rot,.089);
  // Upper-left notice survived a damp season: recognizably complete, faded.
  const old=paper({x:-1.10,y:1.55,w:1.16,h:1.62,cell:1,rotation:.021,age:.72,peel:.035,peelCorner:'tr',cut:[[0,0],[.87,0],[.88,.07],[.97,.055],[1,.12],[1,1],[0,1]]});
  tape(old,-.43,.79,.32,.12,.9,-.07);tape(old,.42,.79,.26,.11,.9,.035);tape(old,-.49,-.66,.13,.26,.7,-.09);
