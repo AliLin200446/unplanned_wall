@@ -1,0 +1,15 @@
+{
+  "name": "unplanned-wall",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env.local scripts/dev.mjs",
+    "test": "node --test tests/letters.test.mjs && node tests/spill.mjs"
+  },
+  "engines": {
+    "node": "24.x"
+  },
+  "dependencies": {
+    "@vercel/blob": "2.8.1"
+  }
+}
