@@ -35,7 +35,7 @@ export function createSpillSystem(scene,boxes,{sound=()=>{},storage=null,reduced
    s.fallenMail.push({id:a.id,kind,placement:a.placement,position:target.position.toArray(),rotation:[target.rotation.x,target.rotation.y,target.rotation.z],parent:target.placement==='door'?index:null});
   });persist();emit();
  }
- function onDoorChange(index,open){const s=states[index];s.opened=open;if(open)s.openCount++;if(open&&SPILL_BOXES.has(index)&&!s.spilled&&!pending.has(index))pending.set(index,{time:0});if(!open&&!s.spilled)pending.delete(index);persist();emit();}
+ function onDoorChange(index,open,{release=true}={}){const s=states[index];s.opened=open;if(open)s.openCount++;if(open&&release&&SPILL_BOXES.has(index)&&!s.spilled&&!pending.has(index))pending.set(index,{time:0});if(!open&&!s.spilled)pending.delete(index);persist();emit();}
  function doorTarget(index,target){const p=pending.get(index);return p&&p.time<.18?boxes[index].rest-.035:target;}
  function flex(a,t,amount){const attr=a.mesh.geometry.attributes.position,uv=a.mesh.geometry.attributes.uv,src=a.original;const amp=a.profile.flutter*amount;for(let i=0;i<attr.count;i++){const u=uv.getX(i),v=uv.getY(i);let bend=Math.sin(u*Math.PI)*Math.sin(v*5+t*(a.kind==='receipt'?19:12))*amp;if(a.kind==='folded')bend+=Math.abs(u-.5)*.065*amount;attr.setZ(i,src[i*3+2]+bend);}attr.needsUpdate=true;a.mesh.geometry.computeVertexNormals();}
  function finish(a){flex(a,a.age,0);a.mesh.position.copy(a.target);a.mesh.rotation.copy(a.targetRotation);if(a.placement==='door')boxes[a.index].pivot.add(a.mesh);

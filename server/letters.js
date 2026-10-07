@@ -17,7 +17,16 @@ export function validate(body){
  return {id:body.id,message,optionalUrl};
 }
 export const emptyState=()=>({version:1,letters:[],limits:{}});
-export function publicState(state){return {mailboxes:MAILBOX_IDS.map(id=>({id,capacity:CAPACITY,letters:state.letters.filter(l=>l.mailboxId===id).map(l=>({id:l.id}))}))};}
+// Records written before reading was introduced are grandfathered as visible.
+export const isVisible=letter=>letter.status===undefined||letter.status==='visible';
+export function readLetter(state,id){
+ if(typeof id!=='string'||!/^[0-9a-f-]{36}$/i.test(id))throw new LetterError(404,'This paper is no longer available.');
+ const letter=state.letters.find(l=>l.id===id&&isVisible(l));
+ if(!letter)throw new LetterError(404,'This paper is no longer available.');
+ let optionalUrl=null;try{optionalUrl=validate({id:letter.id,message:letter.message,optionalUrl:letter.optionalUrl}).optionalUrl;}catch{}
+ return {message:letter.message,optionalUrl,createdAt:letter.createdAt};
+}
+export function publicState(state){return {mailboxes:MAILBOX_IDS.map(id=>({id,capacity:CAPACITY,letters:state.letters.filter(l=>l.mailboxId===id&&isVisible(l)).map(l=>({id:l.id,createdAt:l.createdAt}))}))};}
 export function chooseMailbox(letters,random=()=>randomInt(1000000)/1000000){
  const all=MAILBOX_IDS.map(id=>({id,count:letters.filter(l=>l.mailboxId===id).length})).filter(b=>b.count<CAPACITY);
  if(!all.length)throw new LetterError(409,'The mailboxes are full. Try another day.');
@@ -35,7 +44,7 @@ export function appendLetter(state,input,key,now=Date.now(),random){
  state.limits=Object.fromEntries(Object.entries(state.limits).filter(([,v])=>v.reset>now));
  const limit=state.limits[key];
  if(limit&&(limit.count>=5||now-limit.last<15000))throw new LetterError(429,'Please let the paper settle. Try again in a little while.');
- const letter={...input,mailboxId:chooseMailbox(state.letters,random),createdAt:new Date(now).toISOString()};
+ const letter={...input,mailboxId:chooseMailbox(state.letters,random),createdAt:new Date(now).toISOString(),status:'visible'};
  state.letters.push(letter);state.limits[key]={count:(limit?.count||0)+1,last:now,reset:limit?.reset||now+3600000};
  return {letter,replay:false};
 }

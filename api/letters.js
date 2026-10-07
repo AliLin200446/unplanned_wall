@@ -1,8 +1,8 @@
-import {validate,appendLetter,publicState,clientKey,LetterError} from '../server/letters.js';
+import {validate,readLetter,appendLetter,publicState,clientKey,LetterError} from '../server/letters.js';
 import {readState,transact} from '../server/store.js';
 export const config={maxDuration:30};
 export default async function handler(req,res){
- res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
+ res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('X-Robots-Tag','noindex, nofollow');
  const send=(code,body)=>{res.statusCode=code;res.setHeader('Content-Type','application/json');res.end(JSON.stringify(body));};
  try{
   if(req.method==='GET'){send(200,publicState((await readState()).state));return;}
@@ -16,6 +16,7 @@ export default async function handler(req,res){
   if(body===undefined){let length=0,chunks=[];for await(const chunk of req){length+=chunk.length;if(length>4096)throw new LetterError(413,'Letter is too large.');chunks.push(chunk);}body=Buffer.concat(chunks).toString('utf8');}
   if(Buffer.byteLength(typeof body==='string'?body:JSON.stringify(body))>4096)throw new LetterError(413,'Letter is too large.');
   if(typeof body==='string'){try{body=JSON.parse(body);}catch{throw new LetterError(400,'Invalid letter.');}}
+  if(body?.action==='read'){send(200,{letter:readLetter((await readState()).state,body.id)});return;}
   const input=validate(body);
   const secret=process.env.LETTER_RATE_SECRET||process.env.BLOB_READ_WRITE_TOKEN;
   if(!secret)throw Error('Storage credentials missing');

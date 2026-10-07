@@ -32,7 +32,7 @@ The static site still deploys from `dist/`. Vercel additionally runs `api/letter
 
 For this bounded MVP, one private document stores at most 24 letters per mailbox (360 total), plus short-lived rate-limit metadata. Uncached reads and conditional ETag writes make mailbox assignment, occupancy, idempotency, and rate limits one atomic operation. Conflicting writes retry with jitter; a full wall refuses new deliveries. No stored letters expire or get deleted when they spill. Production and development/preview use separate documents. Larger capacity or high write volume should migrate this small document store to a transactional database.
 
-`GET /api/letters` exposes only mailbox capacity and opaque paper IDs. Letter bodies, links, timestamps, credentials, and rate-limit metadata stay private. `POST` validates size, message, URL, and origin. It limits each daily-hashed network address to five new letters per hour, at least 15 seconds apart; no raw IP is stored. This is lightweight abuse protection, not bot-proofing. Reading letters is intentionally absent.
+`GET /api/letters` exposes mailbox capacity, opaque IDs, and creation times for visible papers. Message bodies and links are retrieved individually on pickup; credentials and rate-limit metadata stay private. `POST` validates size, message, URL, and origin. It limits each daily-hashed network address to five new letters per hour, at least 15 seconds apart; no raw IP is stored. This is lightweight abuse protection, not bot-proofing. Reading requires selecting a physical letter; no feed or message list exists.
 
 ### Development and checks
 
@@ -43,3 +43,15 @@ For this bounded MVP, one private document stores at most 24 letters per mailbox
 5. `node --env-file=.env.local tests/letters-storage.mjs` — optional real-storage concurrency and idempotency test; removes only its own test records and refuses production.
 
 The visual browser checks cover write/fold/send, Unicode limits, unsafe links, network-failure recovery, refresh persistence, and phone-sized/reduced-height layouts. A real mobile keyboard still merits on-device verification.
+
+## Open mail
+
+Open a door and pick an exposed piece of real mail. It slides out into the foreground; **UNFOLD** opens the same two hinged folds used by the writing paper. **PUT BACK** refolds it and returns it behind the next reachable piece. Keyboard users can activate the spatial `Open letter` controls. Fallen letters remain selectable and return to their original mailbox. No record is deleted or reassigned by handling it.
+
+The ID determines one of six restrained paper forms. Age changes tint slowly over six years. Session-only handling remembers order, tiny offsets, and bent folds. Closed compartments use shared low-detail quads; only reachable or fallen papers use detailed geometry. The approved exterior found-paper details remain, while open interiors hide the decorative mail and show the real visible records; an empty mailbox is dark. The original decorative spill no longer creates fake readable objects. Real papers use the existing physical sound and spill language.
+
+Discovery metadata contains only IDs and creation times. Message text is fetched on pickup with `POST /api/letters` and `{ "action": "read", "id": "..." }`; it is not inserted into the accessible reading surface until unfolding. No permalink or indexed letter page exists. Text is inserted with `textContent`. Attached URLs are checked server-side and client-side, with `target="_blank" rel="noopener noreferrer"`.
+
+Records support `status: "visible" | "hidden" | "pending"`. New letters default to visible; legacy records without a status remain visible. Hidden/pending/unknown statuses are excluded from metadata and content requests. Status changes require trusted server-side storage access; there is deliberately no public moderation mutation endpoint or moderation UI. This is moderation support, not automatic content screening.
+
+`node --env-file=.env.local scripts/seed-reading.mjs` adds real development fixtures for empty, 1-, 5-, 12-, and 21-letter cases plus hidden/pending records. It refuses production, preserves existing records, and does not seed the public wall. Run `npm test` for moderation, deterministic forms, front-only reachability, session rearrangement, LOD, spill/return identity, and existing sending regressions.
