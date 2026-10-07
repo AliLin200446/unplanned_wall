@@ -1,3 +1,4 @@
+import {pinLetter} from '../server/wall.js';
 import {validate,readLetter,appendLetter,publicState,clientKey,LetterError} from '../server/letters.js';
 import {readState,transact} from '../server/store.js';
 export const config={maxDuration:30};
@@ -17,6 +18,7 @@ export default async function handler(req,res){
   if(Buffer.byteLength(typeof body==='string'?body:JSON.stringify(body))>4096)throw new LetterError(413,'Letter is too large.');
   if(typeof body==='string'){try{body=JSON.parse(body);}catch{throw new LetterError(400,'Invalid letter.');}}
   if(body?.action==='read'){send(200,{letter:readLetter((await readState()).state,body.id)});return;}
+  if(body?.action==='pin'){const {result,state}=await transact(s=>pinLetter(s,body.id));send(200,{letter:result,...publicState(state)});return;}
   const input=validate(body);
   const secret=process.env.LETTER_RATE_SECRET||process.env.BLOB_READ_WRITE_TOKEN;
   if(!secret)throw Error('Storage credentials missing');

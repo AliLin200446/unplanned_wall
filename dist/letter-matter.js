@@ -18,7 +18,7 @@ export function createLetterMatter(scene,boxes,{sound=()=>{},reduced=false}={}){
   const y=-.70+f.height/2+(c<=3?n*.085:Math.min(n,21)*.045);
   const z=.33+(c<=3?.075+n*.004:n*.0045)+(hovered===item.id?.025:0);
   item.home.position.set(x,y,z);item.home.rotation.set(-.035-(c>18?.06:0)-(hovered===item.id?.025:0),0,f.turn+(handled?.turn||0));
-  item.mesh.position.copy(item.home.position);item.mesh.rotation.copy(item.home.rotation);
+  item.mesh.position.lerp(item.home.position,item.settling?.12:1);item.mesh.rotation.copy(item.home.rotation);
   if(hovered&&hovered!==item.id&&front)item.mesh.position.z-=.004;
   if(compression[index]>0)item.mesh.position.z-=Math.sin(compression[index]*Math.PI)*(.008+counts[index]*.0006);
   setDetail(item,open&&front);item.mesh.visible=!item.incoming;
@@ -39,6 +39,7 @@ export function createLetterMatter(scene,boxes,{sound=()=>{},reduced=false}={}){
  function onDoorChange(index,open){layout(index);if(open&&counts[index]>=19)pending.set(index,0);if(!open)pending.delete(index);}
  function update(dt){
   for(const [index,age]of pending){if(!boxes[index].open){pending.delete(index);continue;}pending.set(index,age+dt);if(age+dt>.35&&(Math.abs(boxes[index].angle||0)>.55||reduced)){pending.delete(index);spill(index);}}
+  for(const item of papers.values())item.settling=Math.max(0,(item.settling||0)-dt);
   for(let i=0;i<15;i++){compression[i]=Math.max(0,compression[i]-dt*1.7);layout(i);
    // Preserve the approved exterior. Open interiors contain only real mail.
    for(const item of boxes[i].mail.moving)item.mesh.visible=!boxes[i].open&&!item.fallen;
@@ -48,5 +49,5 @@ export function createLetterMatter(scene,boxes,{sound=()=>{},reduced=false}={}){
  function hold(id){const item=papers.get(id);if(!item||!reachable().includes(item))return null;scene.updateMatrixWorld(true);item.held=true;item.source={position:item.mesh.getWorldPosition(new THREE.Vector3()),quaternion:item.mesh.getWorldQuaternion(new THREE.Quaternion())};scene.attach(item.mesh);setDetail(item,true);hovered=null;compression[item.index]=1;layout(item.index);return item;}
  function returnTarget(item){const stack=inside(item.index);handling.orders[item.index]=[item.id,...stack.map(p=>p.id)];handling.touched[item.id]={offset:((item.form.hash%5)-2)*.012,turn:((item.form.hash%7)-3)*.01};delete history[item.id];item.fallen=false;item.held=false;boxes[item.index].base.add(item.mesh);layout(item.index);const target={position:item.mesh.getWorldPosition(new THREE.Vector3()),quaternion:item.mesh.getWorldQuaternion(new THREE.Quaternion())};item.held=true;scene.attach(item.mesh);persist();return target;}
  function finishReturn(item){item.held=false;item.fallen=false;item.mesh.visible=true;boxes[item.index].base.add(item.mesh);compression[item.index]=1;layout(item.index);persist();}
- return {sync,update,onDoorChange,counts,papers,reachable,hold,returnTarget,finishReturn,hover(id){hovered=id;},get ready(){return ready;},compress(index){compression[index]=1;},reveal(id){const p=papers.get(id);if(p){p.incoming=false;p.mesh.visible=true;compression[p.index]=1;}},material};
+ return {remove(id){const p=papers.get(id);if(p){p.mesh.removeFromParent();papers.delete(id);for(const item of inside(p.index))item.settling=1;delete history[id];compression[p.index]=1;counts[p.index]=Math.max(0,counts[p.index]-1);persist();}},sync,update,onDoorChange,counts,papers,reachable,hold,returnTarget,finishReturn,hover(id){hovered=id;},get ready(){return ready;},compress(index){compression[index]=1;},reveal(id){const p=papers.get(id);if(p){p.incoming=false;p.mesh.visible=true;compression[p.index]=1;}},material};
 }

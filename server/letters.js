@@ -1,3 +1,4 @@
+import {publicWall} from './wall.js';
 import {createHmac, randomInt} from 'node:crypto';
 export const CAPACITY=24;
 export const MAILBOX_IDS=Array.from({length:15},(_,i)=>String(i+1));
@@ -14,7 +15,7 @@ export function validate(body){
   const value=body.optionalUrl.trim();
   try{const u=new URL(value);if(!/^https?:\/\//i.test(value)||!['http:','https:'].includes(u.protocol)||u.username||u.password||/[\s\\\u0000-\u001f]/u.test(value)||!u.hostname)throw Error();optionalUrl=u.href;}catch{throw new LetterError(400,'Use a valid http or https link.');}
  }
- return {id:body.id,message,optionalUrl};
+ if(body.allowPinToWall!==undefined&&typeof body.allowPinToWall!=='boolean')throw new LetterError(400,'Invalid permission.'); return {id:body.id,message,optionalUrl,allowPinToWall:body.allowPinToWall===true};
 }
 export const emptyState=()=>({version:1,letters:[],limits:{}});
 // Records written before reading was introduced are grandfathered as visible.
@@ -24,11 +25,11 @@ export function readLetter(state,id){
  const letter=state.letters.find(l=>l.id===id&&isVisible(l));
  if(!letter)throw new LetterError(404,'This paper is no longer available.');
  let optionalUrl=null;try{optionalUrl=validate({id:letter.id,message:letter.message,optionalUrl:letter.optionalUrl}).optionalUrl;}catch{}
- return {message:letter.message,optionalUrl,createdAt:letter.createdAt};
+ return {message:letter.message,optionalUrl,createdAt:letter.createdAt,allowPinToWall:letter.allowPinToWall===true,wallState:letter.wallState||'mailbox'};
 }
-export function publicState(state){return {mailboxes:MAILBOX_IDS.map(id=>({id,capacity:CAPACITY,letters:state.letters.filter(l=>l.mailboxId===id&&isVisible(l)).map(l=>({id:l.id,createdAt:l.createdAt}))}))};}
+export function publicState(state){return {mailboxes:MAILBOX_IDS.map(id=>({id,capacity:CAPACITY,letters:state.letters.filter(l=>l.mailboxId===id&&isVisible(l)&&(!l.wallState||l.wallState==='mailbox')).map(l=>({id:l.id,createdAt:l.createdAt}))})),wall:publicWall(state)};}
 export function chooseMailbox(letters,random=()=>randomInt(1000000)/1000000){
- const all=MAILBOX_IDS.map(id=>({id,count:letters.filter(l=>l.mailboxId===id).length})).filter(b=>b.count<CAPACITY);
+ const all=MAILBOX_IDS.map(id=>({id,count:letters.filter(l=>l.mailboxId===id&&(!l.wallState||l.wallState==='mailbox')).length})).filter(b=>b.count<CAPACITY);
  if(!all.length)throw new LetterError(409,'The mailboxes are full. Try another day.');
  const roll=random(),category=roll<.7?0:roll<.9?1:2;
  const pools=[all.filter(b=>b.count<13),all.filter(b=>b.count>=8&&b.count<19),all.filter(b=>b.count>=19)];
@@ -40,11 +41,11 @@ export function chooseMailbox(letters,random=()=>randomInt(1000000)/1000000){
 export function clientKey(ip,secret,now=Date.now()){return createHmac('sha256',secret).update(`${Math.floor(now/86400000)}:${ip}`).digest('hex');}
 export function appendLetter(state,input,key,now=Date.now(),random){
  const existing=state.letters.find(l=>l.id===input.id);
- if(existing){if(existing.message!==input.message||existing.optionalUrl!==input.optionalUrl)throw new LetterError(409,'This delivery ID was already used.');return {letter:existing,replay:true};}
+ if(existing){if(existing.message!==input.message||existing.optionalUrl!==input.optionalUrl||(existing.allowPinToWall===true)!==(input.allowPinToWall===true))throw new LetterError(409,'This delivery ID was already used.');return {letter:existing,replay:true};}
  state.limits=Object.fromEntries(Object.entries(state.limits).filter(([,v])=>v.reset>now));
  const limit=state.limits[key];
  if(limit&&(limit.count>=5||now-limit.last<15000))throw new LetterError(429,'Please let the paper settle. Try again in a little while.');
- const letter={...input,mailboxId:chooseMailbox(state.letters,random),createdAt:new Date(now).toISOString(),status:'visible'};
+ const letter={...input,mailboxId:chooseMailbox(state.letters,random),createdAt:new Date(now).toISOString(),status:'visible',wallState:'mailbox'};
  state.letters.push(letter);state.limits[key]={count:(limit?.count||0)+1,last:now,reset:limit?.reset||now+3600000};
  return {letter,replay:false};
 }

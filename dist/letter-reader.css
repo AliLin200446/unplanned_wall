@@ -7,3 +7,6 @@
 @media(max-width:600px){#reading-content{padding:48px 26px 70px}#reading-actions{left:26px;right:26px;gap:16px;bottom:16px}#reading-folds .fold-copy{padding-top:48px}#reading-note{font-size:9px;max-width:130px}}
 body.letter-reading #letter-desk{display:none}#reading-paper.paper-face{background-color:var(--paper-tint,#eee7d6)}
 .physical-letter-control[data-fallen=true]{pointer-events:auto;cursor:pointer}
+#letter-reading-desk[data-state=pin-folding] #reading-actions{bottom:calc(var(--paper-h) / 3 + 18px)}
+body:has(#wall-letter-access button:focus-visible) #letter-desk{visibility:hidden}
+body.wall-reading #letter-desk,body.wall-reading #access,body.wall-reading #letter-access{visibility:hidden}

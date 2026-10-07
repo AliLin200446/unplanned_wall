@@ -55,3 +55,13 @@ Discovery metadata contains only IDs and creation times. Message text is fetched
 Records support `status: "visible" | "hidden" | "pending"`. New letters default to visible; legacy records without a status remain visible. Hidden/pending/unknown statuses are excluded from metadata and content requests. Status changes require trusted server-side storage access; there is deliberately no public moderation mutation endpoint or moderation UI. This is moderation support, not automatic content screening.
 
 `node --env-file=.env.local scripts/seed-reading.mjs` adds real development fixtures for empty, 1-, 5-, 12-, and 21-letter cases plus hidden/pending records. It refuses production, preserves existing records, and does not seed the public wall. Run `npm test` for moderation, deterministic forms, front-only reachability, session rearrangement, LOD, spill/return identity, and existing sending regressions.
+
+### Pinning permitted letters
+
+The writing sheet defaults to **KEEP IN MAILBOX**. Only an explicit **MAY BE PINNED** stamp stores `allowPinToWall: true`; legacy letters remain ineligible. Reading an eligible letter exposes **PIN TO WALL**. The server checks consent and visibility inside the same conditional-write transaction as the move. Retried or concurrent moves reuse the existing placement.
+
+Pinned letters keep their original record, message, creation date and mailbox provenance. Public metadata removes them from mailbox occupancy and includes only visible, consented wall records. Physical placement, rotation, layer and pin timestamp persist. The browser animates the held paper into place only after confirmation, then reconciles with storage. Failure leaves the letter available to retry or return.
+
+The board has fixed bounds. Candidate placements favor less overlap and older layers; no placement may cover more than 12% of a letter pinned in the preceding 24 hours. When fresh paper fills the board, pinning waits for space to become eligible. Papers do not shrink. Age follows real elapsed years: subtle discoloration and curl, remnants after 12 years, and ghosts after 20 years. Records are retained, including covered and removed items. Moderation remains the existing visible/pending/hidden architecture, not an automated moderation service.
+
+Pinned text is a paper texture in the WebGL scene. Activating a paper brings the camera closer while it remains attached; **STEP BACK** or Escape restores the wall view. Semantic controls expose the text and any safe attached link to assistive technology. The wall refreshes on visibility changes and periodically while idle so moderated items disappear.

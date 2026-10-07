@@ -1,24 +1,27 @@
 import * as THREE from './vendor/three.module.js';
 import {createLetterMatter} from './letter-matter.js';
+import {createWallLetters} from './wall-letters.js';
 import {createLetterReader} from './letter-reader.js';
-export function createLetterExperience({scene,camera,renderer,boxes,reduced,sound,unlockAudio,openMailbox}){
+export function createLetterExperience({scene,camera,renderer,boxes,board,reduced,sound,unlockAudio,openMailbox}){
  const matter=createLetterMatter(scene,boxes,{sound,reduced});
  const desk=document.createElement('section');desk.id='letter-desk';desk.setAttribute('aria-label','Letter paper');
- desk.innerHTML=`<div id="letter-paper" class="paper-face"><button id="paper-pickup" aria-label="Write a letter"><span>WRITE SOMETHING</span></button><div id="letter-writing" hidden><div class="paper-heading"><span>TO SOMEWHERE IN THIS BUILDING</span><button id="letter-close" aria-label="Put the paper back">×</button></div><textarea id="letter-message" aria-label="Your anonymous letter" placeholder="Leave a few words here." spellcheck="true" aria-describedby="paper-error letter-count"></textarea><p id="letter-count"></p><input id="letter-link" type="url" aria-label="Optional link" placeholder="https://" maxlength="2048" hidden><p id="paper-error" role="status" aria-live="polite"></p><div class="paper-footer"><button id="letter-attach">+ ATTACH LINK</button><button id="letter-fold" disabled>FOLD</button></div></div><div id="paper-folds" hidden>${['top','middle','bottom'].map(p=>`<div class="fold-panel ${p}"><div class="fold-front paper-face"><div class="fold-copy"></div></div><div class="fold-back paper-face"></div></div>`).join('')}</div><div id="letter-seal" hidden><p id="delivery-note" role="status" aria-live="polite"></p><div class="seal-actions"><button id="letter-edit">UNFOLD</button><button id="letter-send">SEND</button></div></div></div>`;
+ desk.innerHTML=`<div id="letter-paper" class="paper-face"><button id="paper-pickup" aria-label="Write a letter"><span>WRITE SOMETHING</span></button><div id="letter-writing" hidden><div class="paper-heading"><span>TO SOMEWHERE IN THIS BUILDING</span><button id="letter-close" aria-label="Put the paper back">×</button></div><textarea id="letter-message" aria-label="Your anonymous letter" placeholder="Leave a few words here." spellcheck="true" aria-describedby="paper-error letter-count"></textarea><p id="letter-count"></p><input id="letter-link" type="url" aria-label="Optional link" placeholder="https://" maxlength="2048" hidden><div id="pin-permission"><button type="button" id="keep-mailbox" aria-pressed="true">KEEP IN MAILBOX</button><button type="button" id="may-pin" aria-pressed="false">MAY BE PINNED</button><small>Others may place this letter on the public wall.</small></div><p id="paper-error" role="status" aria-live="polite"></p><div class="paper-footer"><button id="letter-attach">+ ATTACH LINK</button><button id="letter-fold" disabled>FOLD</button></div></div><div id="paper-folds" hidden>${['top','middle','bottom'].map(p=>`<div class="fold-panel ${p}"><div class="fold-front paper-face"><div class="fold-copy"></div></div><div class="fold-back paper-face"></div></div>`).join('')}</div><div id="letter-seal" hidden><p id="delivery-note" role="status" aria-live="polite"></p><div class="seal-actions"><button id="letter-edit">UNFOLD</button><button id="letter-send">SEND</button></div></div></div>`;
  document.body.appendChild(desk);
  const el=id=>desk.querySelector('#'+id),paper=el('letter-paper'),pickup=el('paper-pickup'),writing=el('letter-writing'),message=el('letter-message'),link=el('letter-link'),folds=el('paper-folds'),seal=el('letter-seal'),fold=el('letter-fold'),send=el('letter-send'),note=el('delivery-note'),error=el('paper-error');
  let mode='rest',phase=0,id=crypto.randomUUID(),near=0,time=0,restUntil=0,flight=null,pendingLetter=null;
- let initialized=false;
+ let initialized=false,allowPinToWall=false;
+ for(const [name,value] of [['keep-mailbox',false],['may-pin',true]])el(name).addEventListener('click',()=>{allowPinToWall=value;id=crypto.randomUUID();el('keep-mailbox').setAttribute('aria-pressed',String(!value));el('may-pin').setAttribute('aria-pressed',String(value));});
  let layout={x:0,y:0,w:440,h:510,scale:.2,rotation:-7},current={...layout};
  const status=document.querySelector('#status'),attention={x:0,y:0};
- const reader=createLetterReader({scene,camera,renderer,boxes,matter,reduced,sound,unlockAudio,openMailbox,canStart:()=>['rest','delivered'].includes(mode),onRefresh:refresh});
+ const wall=createWallLetters({scene,board,camera,renderer,sound,reduced,canStart:()=>!reader.active&&['rest','delivered'].includes(mode)});
+ const reader=createLetterReader({scene,camera,renderer,boxes,matter,wall,reduced,sound,unlockAudio,openMailbox,canStart:()=>!wall.active&&['rest','delivered'].includes(mode),onRefresh:refresh});
  function setMode(value){mode=value;desk.dataset.state=value;document.body.classList.toggle('letter-writing',!['rest','delivered'].includes(value));}
- async function refresh(){try{const r=await fetch('/api/letters',{cache:'no-store'});if(!r.ok)throw Error();const data=await r.json();matter.sync(data,pendingLetter?.id);desk.dataset.storage='ready';}catch{desk.dataset.storage='unavailable';status.textContent='The mail could not be reached. Open a mailbox again to retry.';}}
- refresh();document.addEventListener('visibilitychange',()=>{if(!document.hidden&&mode==='rest'&&!reader.active)refresh();});
+ async function refresh(){try{const r=await fetch('/api/letters',{cache:'no-store'});if(!r.ok)throw Error();const data=await r.json();matter.sync(data,pendingLetter?.id);wall.sync(data.wall||[]);desk.dataset.storage='ready';}catch{desk.dataset.storage='unavailable';status.textContent='The mail could not be reached. Open a mailbox again to retry.';}}
+ refresh();setInterval(()=>{if(!document.hidden&&mode==='rest'&&!reader.active)refresh();},30000);document.addEventListener('visibilitychange',()=>{if(!document.hidden&&mode==='rest'&&!reader.active)refresh();});
  function shape(){const vv=window.visualViewport;const width=vv?.width||innerWidth,height=vv?.height||innerHeight;const w=Math.min(440,width-36),h=Math.min(510,height-32);return {w,h:Math.max(270,h),x:(vv?.offsetLeft||0)+width/2,y:(vv?.offsetTop||0)+height/2};}
  function validate(){const chars=Array.from(message.value);if(chars.length>280)message.value=chars.slice(0,280).join('');const length=Array.from(message.value).length;el('letter-count').textContent=length>=230?`${length} / 280`:'';fold.disabled=!message.value.trim();error.textContent='';}
  message.addEventListener('input',()=>{id=crypto.randomUUID();validate();});link.addEventListener('input',()=>{id=crypto.randomUUID();error.textContent='';});
- pickup.addEventListener('click',()=>{if(reader.active)return;unlockAudio();setMode('writing');pickup.hidden=true;writing.hidden=false;paper.classList.add('paper-face');message.focus({preventScroll:true});sound('rustle','folded',.04);});
+ pickup.addEventListener('click',()=>{if(reader.active||wall.active)return;unlockAudio();setMode('writing');pickup.hidden=true;writing.hidden=false;paper.classList.add('paper-face');message.focus({preventScroll:true});sound('rustle','folded',.04);});
  function putBack(){if(mode!=='writing')return;setMode('rest');writing.hidden=true;pickup.hidden=false;message.blur();pickup.focus({preventScroll:true});}
  el('letter-close').addEventListener('click',putBack);
  document.addEventListener('keydown',e=>{if(mode!=='rest'&&mode!=='delivered'&&e.key==='Escape'){e.stopImmediatePropagation();if(mode==='writing')putBack();else if(mode==='folded')unfold();}},true);
@@ -36,7 +39,7 @@ export function createLetterExperience({scene,camera,renderer,boxes,reduced,soun
  send.addEventListener('click',async()=>{
   if(!['folded','failed'].includes(mode))return;setMode('saving');send.disabled=true;el('letter-edit').hidden=true;note.textContent='';send.textContent='SENDING';
   try{
-   const r=await fetch('/api/letters',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,message:message.value.trim(),optionalUrl:link.value.trim()||null}),signal:AbortSignal.timeout(20000)});
+   const r=await fetch('/api/letters',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,message:message.value.trim(),optionalUrl:link.value.trim()||null,allowPinToWall}),signal:AbortSignal.timeout(20000)});
    const response=await r.json();if(!r.ok)throw Error(response.error||'Delivery failed.');
    pendingLetter=response.letter;matter.sync(response,response.letter.id);
    const index=Number(response.letter.mailboxId)-1,b=boxes[index];scene.updateMatrixWorld(true);
@@ -51,7 +54,7 @@ export function createLetterExperience({scene,camera,renderer,boxes,reduced,soun
  window.addEventListener('pointermove',e=>{if(mode!=='rest')return;const r=paper.getBoundingClientRect();near=Math.max(0,1-Math.hypot(e.clientX-r.left-r.width/2,e.clientY-r.top-r.height/2)/150);});
  const smooth=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t);};
  function update(dt){
-  time+=dt;matter.update(dt);reader.update(dt);paper.style.setProperty('--curl',String(near*22)+'deg');if(!flight){attention.x*=Math.exp(-dt*4);attention.y*=Math.exp(-dt*4);}
+  time+=dt;matter.update(dt);reader.update(dt);wall.update(dt);paper.style.setProperty('--curl',String(near*22)+'deg');if(!flight){attention.x*=Math.exp(-dt*4);attention.y*=Math.exp(-dt*4);}
   const s=shape();layout.w=s.w;layout.h=s.h;layout.x=s.x;layout.y=s.y;layout.rotation=0;layout.scale=1;
   if(mode==='rest'||mode==='delivered'){
    const v=new THREE.Vector3(-5.35,-4.11,.85).project(camera),r=renderer.domElement.getBoundingClientRect();
@@ -81,9 +84,9 @@ export function createLetterExperience({scene,camera,renderer,boxes,reduced,soun
     const p=f.mesh.geometry.attributes.position;for(let j=0;j<p.count;j++)p.setZ(j,f.original[j*3+2]+Math.sin(p.getX(j)*4)*Math.sin(q*Math.PI)*.07);p.needsUpdate=true;
     if(!f.contact){f.contact=true;matter.compress(f.index);sound('contact','folded',.045);}
    }
-   if(t>=3.4){matter.reveal(f.letter.id);scene.remove(f.mesh);f.mesh.geometry.dispose();flight=null;pendingLetter=null;message.value='';link.value='';id=crypto.randomUUID();status.textContent='Your letter has been left in the building.';setMode('delivered');restUntil=time+7;}
+   if(t>=3.4){matter.reveal(f.letter.id);scene.remove(f.mesh);f.mesh.geometry.dispose();flight=null;pendingLetter=null;message.value='';link.value='';allowPinToWall=false;el('keep-mailbox').setAttribute('aria-pressed','true');el('may-pin').setAttribute('aria-pressed','false');id=crypto.randomUUID();status.textContent='Your letter has been left in the building.';setMode('delivered');restUntil=time+7;}
   }
   if(mode==='delivered'&&time>restUntil){setMode('rest');paper.hidden=false;pickup.hidden=false;writing.hidden=true;folds.hidden=true;seal.hidden=true;link.hidden=true;el('letter-attach').hidden=false;paper.classList.add('paper-face');validate();}
  }
- return {update,attention,onDoorChange(index,open){matter.onDoorChange(index,open);if(open)refresh();},get active(){return reader.active||!['rest','delivered'].includes(mode);}};
+ return {update,attention,wall,onDoorChange(index,open){matter.onDoorChange(index,open);if(open)refresh();},get active(){return wall.active||reader.active||!['rest','delivered'].includes(mode);}};
 }
