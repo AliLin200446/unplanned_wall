@@ -1,0 +1,19 @@
+{
+  "mode": "built-in image_gen",
+  "assets": [
+    {
+      "name": "noticeboard-backing",
+      "path": "/Users/alilin/.codex/generated_images/01a1162f-31bc-7d81-bf0a-28bdfebb1997/exec-4787ff74-5bc4-4261-90a4-febce9c8938a.png",
+      "width": 1024,
+      "height": 1536,
+      "prompt": "Use case: photorealistic-natural. Asset type: portrait noticeboard backing texture for a 3D scene. Create a flat straight-on photographic surface texture, edge-to-edge, portrait ratio 2:3. Deep dirty charcoal-black old public noticeboard backing, large quiet regions, at least 85 percent visibly black. Four very subtle rectangular adhesive ghosts left by removed posters. A few old tape corners. Exactly about ten small torn off-white paper remnants selectively clustered at the lower-left and lower-right edges only; tiny partial Chinese characters and partial phone numerals on two fragments. Surface has aged matte black material, slight uneven broad wear. Broad flat diffuse light. No frame, no intact posters, no wall, no perspective, no cast shadows, no white noise, no uniform grunge, no evenly scattered fibers. Most of the board must stay empty black so separate poster geometry can be layered on top. Restrained believable old Taiwanese apartment noticeboard material, not illustration, not graphic design."
+    },
+    {
+      "name": "poster-paper-atlas",
+      "path": "/Users/alilin/.codex/generated_images/01a1162f-31bc-7d81-bf0a-28bdfebb1997/exec-9064c458-4d03-4cd4-903c-b328a26db713.png",
+      "width": 1254,
+      "height": 1254,
+      "prompt": "Use case: photorealistic-natural. Asset type: four-cell PAPER texture atlas for 3D poster surfaces. Create a square image divided exactly into 2 columns and 2 rows of equally sized cells, each cell filled edge-to-edge by flat paper, with no gaps, margins, separators or surrounding background. TOP LEFT cell: faded warm vermilion/orange local rental notice paper; large black locally hand-typeset Chinese lettering exactly '雅房出租', supporting text '近車站' and '採光佳', sparse small handwritten details and incomplete contact numerals, almost intact paper with one gentle folded line. TOP RIGHT: aged cream municipal apartment notice paper, heading exactly '住戶通知', faded ink sparse paragraph blocks with a clear notice structure, water stain at lower corner, intact paper surface. BOTTOM LEFT: off-white cheaply printed local repair flyer, heading exactly '水電維修', black small type and faded partial phone number, no complete working phone number, gentle paper creases. BOTTOM RIGHT: dirty pale yellow paper, heading exactly '公告', faded type with two sparse text blocks in a receipt-like structure. Flat straight-on photography with diffuse illumination and believable subtle paper fibers. Paper surface itself fills all of every cell and all of image to its boundaries. No frame, no tape, no 3D shadows outside paper, no mockup, no wall, no border, no orange anywhere except top-left cell, no neon colors."
+    }
+  ]
+}

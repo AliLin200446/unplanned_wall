@@ -1,5 +1,6 @@
 import * as THREE from './vendor/three.module.js';
 import {createMailboxMail,updateMailboxMail} from './mail.js';
+import {createBoardSurface} from './board.js';
 const host=document.querySelector('#scene'), status=document.querySelector('#status');
 const addresses=['66–1','66–2','66–3','68–1','68–2','68–3','69–1','69–2','69–3','70–1','70–2','70–3','71–1','71–2','71–3'];
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -23,10 +24,9 @@ box(bank,5.13,8.32,.37,0,0,-.04,edge);box(bank,4.97,8.12,.12,0,0,.16,dark);
 for(let col=0;col<4;col++){box(bank,.078,8.34,.36,-2.535+col*1.69,0,.20,steel);box(bank,.016,8.27,.028,-2.50+col*1.69,0,.397,edge);}for(let row=0;row<6;row++)box(bank,5.10,.071,.31,0,4.13-row*1.65,.23,steel);
 // Aged municipal plate, with just a building identifier.
 const signMap=tex(canvas(512,160,(c,w,h)=>{c.fillStyle='#183960';c.fillRect(0,0,w,h);c.strokeStyle='#a7b0ac';c.lineWidth=3;c.strokeRect(5,5,w-10,h-10);c.fillStyle='#d6d7c8';c.font='62px sans-serif';c.fillText('明德大樓',18,101);c.fillStyle='#b5b1a2';for(const [x,y,a,b]of[[1,0,19,5],[3,5,6,17],[450,151,37,3],[89,30,12,1],[409,9,8,2]])c.fillRect(x,y,a,b);}));const sign=plane(scene,1.24,.387,4.11,3.66,-.37,mat('#fff',{map:signMap}));sign.rotation.z=.017;
-const board=new THREE.Group();board.position.set(2.68,.63,-.14);board.scale.x=1.35;board.rotation.z=.009;scene.add(board);box(board,4.00,5.31,.13,0,0,0,dark);const boardTex=imageTexture('assets/board.png');plane(board,3.82,5.12,0,0,.075,mat('#fff',{map:boardTex,bumpMap:boardTex,bumpScale:.019,roughness:1}));for(let s of [-1,1]){box(board,.08,5.4,.13,s*2,0,.1,edge);box(board,4.08,.072,.13,0,s*2.66,.1,edge);}
-// A few actual lifted edges add thickness to the generations of torn paper.
+const board=new THREE.Group();board.position.set(2.68,.63,-.14);board.scale.x=1.35;board.rotation.z=.009;scene.add(board);box(board,4.00,5.31,.13,0,0,0,dark);createBoardSurface(board);for(let s of [-1,1]){box(board,.08,5.4,.13,s*2,0,.1,edge);box(board,4.08,.072,.13,0,s*2.66,.1,edge);}
+// Shared paper geometry for the existing mailbox labels.
 function tornSheet(w,h,seed,map,color='#e1daca',bend=.02){const r=rng(seed),nx=12,ny=10,g=new THREE.PlaneGeometry(w,h,nx,ny),p=g.attributes.position;for(let i=0;i<p.count;i++){let x=p.getX(i),y=p.getY(i),u=(x+w/2)/w,v=(y+h/2)/h;if(u<.001||u>.999)x+=(r()-.5)*(seed%3===0?.027:.007);if(v<.001||v>.999)y+=(r()-.5)*(seed%3===0?.032:.006);p.setXYZ(i,x,y,bend*Math.pow(u,3)+Math.sin(u*4+v*2)*bend*.16);}g.computeVertexNormals();const m=new THREE.Mesh(g,mat(color,{map,side:THREE.DoubleSide,roughness:.97}));m.castShadow=true;m.receiveShadow=true;return m;}
-for(const [x,y,w,h,rot]of[[-1.43,.84,.19,.05,.28],[.34,-1.47,.13,.18,-.4],[1.51,1.95,.27,.05,.06],[-.21,.05,.16,.04,.3]]){let m=tornSheet(w,h,Math.round((x+2)*93),null,'#c9c3b0',.028);m.position.set(x,y,.092);m.rotation.z=rot;board.add(m);}
 // Pipes continue beyond the crop; brackets belong to different repairs.
 for(let j=0;j<3;j++)tube(scene,[[-16,-4.61-j*.145,-.37],[-5,-4.62-j*.14,-.32],[2,-4.58-j*.15,-.31],[9,-4.49-j*.15,-.29],[16,-4.55-j*.15,-.35]],j===2?.031:.045,j===1?edge:steel);
 for(const [x,w,y] of [[-5.8,.08,-4.72],[-1.3,.043,-4.68],[3.6,.11,-4.64],[7.1,.055,-4.62]]){box(scene,w,.43,.07,x,y,-.27,x>0?edge:steel);box(scene,.06,.05,.08,x,y+.2,-.25,rust);}
