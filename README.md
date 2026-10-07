@@ -17,3 +17,7 @@ Serve the `dist` directory using any static HTTP server, then open its local URL
 - `.openai/hosting.json` — existing Sites publishing identity
 
 Interaction wear is stored for the current browser session. Audio starts only after interaction.
+
+Two overfilled compartments spill once per browser session. Fallen and caught mail remain after closing, reopening, or reloading the page. The spill uses bounded, deterministic motion with lightweight contact handling; settled paper stops updating. Reduced-motion mode preserves the resulting state without the falling animation.
+
+Run `node tests/spill.mjs` to verify release timing, cancellation, one-time behavior, accumulation, restoration, and reduced motion.
