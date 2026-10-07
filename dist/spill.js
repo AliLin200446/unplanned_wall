@@ -1,3 +1,4 @@
+import {finiteGeometry} from './paper-physics.js';
 import * as THREE from './vendor/three.module.js';
 const SPILL_BOXES=new Set([3,11]);
 const RELAX_BOXES=new Set([1,6,7,13]);
@@ -5,7 +6,7 @@ const KEY='unplanned-mail-history-v1';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const smooth=t=>{t=clamp(t,0,1);return t*t*(3-2*t);};
 const profiles={envelope:{gravity:12,flutter:.006,turn:.12},advert:{gravity:8.8,flutter:.055,turn:.7},receipt:{gravity:11.6,flutter:.035,turn:1.8},folded:{gravity:10.4,flutter:.025,turn:.38},card:{gravity:13.4,flutter:.003,turn:.10},newspaper:{gravity:8.6,flutter:.042,turn:.48}};
-export function createSpillSystem(scene,boxes,{sound=()=>{},storage=null,reduced=false,onState=()=>{}}={}){
+export function createSpillSystem(scene,boxes,{sound=()=>{},storage=null,reduced=false,physicalMailOnly=false,onState=()=>{}}={}){
  let restored;try{restored=JSON.parse(storage?.getItem(KEY)||'null');}catch{}
  const states=boxes.map((b,i)=>({opened:false,openCount:0,spilled:false,remainingMail:b.mail.moving.length,fallenMail:[],...(restored?.version===1?restored.boxes?.[i]:{})}));
  const pending=new Map(),active=[],settled=[];let tick=0,accumulator=0;
@@ -13,7 +14,7 @@ export function createSpillSystem(scene,boxes,{sound=()=>{},storage=null,reduced
  function emit(){onState({active:active.length,pending:pending.size,fallen:states.reduce((n,s)=>n+s.fallenMail.length,0),spilled:states.filter(s=>s.spilled).length});}
  function serialize(a){return {id:a.id,kind:a.kind,placement:a.placement,position:a.mesh.position.toArray(),rotation:[a.mesh.rotation.x,a.mesh.rotation.y,a.mesh.rotation.z],parent:a.placement==='door'?a.index:null};}
  function applyRecord(index,record){const item=boxes[index].mail.moving.find(m=>m.id===record.id);if(!item)return;item.fallen=true;const mesh=item.mesh;const parent=record.placement==='door'?boxes[index].pivot:scene;parent.add(mesh);mesh.position.fromArray(record.position);mesh.rotation.set(...record.rotation);settled.push({mesh,index,id:record.id,placement:record.placement});}
- for(let i=0;i<boxes.length;i++){const b=boxes[i],s=states[i];if(s.spilled){b.rest=0;for(const record of s.fallenMail)applyRecord(i,record);}b.open=!!s.opened;b.target=b.open?-1.39:b.rest;b.angle=b.target;b.pivot.rotation.y=b.angle;b.button.setAttribute('aria-expanded',String(b.open));}
+ for(let i=0;i<boxes.length;i++){const b=boxes[i],s=states[i];if(s.spilled){b.rest=0;if(!physicalMailOnly)for(const record of s.fallenMail)applyRecord(i,record);}b.open=!!s.opened;b.target=b.open?-1.39:b.rest;b.angle=b.target;b.pivot.rotation.y=b.angle;b.button.setAttribute('aria-expanded',String(b.open));}
  scene.updateMatrixWorld(true);
  function destination(index,ordinal,total,item){const b=boxes[index],placement=ordinal===total-1?'door':ordinal===total-2?'frame':'ground';const mesh=item.mesh;const h=item.height||.6;
   if(placement==='door')return {placement,position:new THREE.Vector3(.83,-.65-h*.25,.08),rotation:new THREE.Euler(-.30,.03,.14)};
@@ -35,9 +36,9 @@ export function createSpillSystem(scene,boxes,{sound=()=>{},storage=null,reduced
    s.fallenMail.push({id:a.id,kind,placement:a.placement,position:target.position.toArray(),rotation:[target.rotation.x,target.rotation.y,target.rotation.z],parent:target.placement==='door'?index:null});
   });persist();emit();
  }
- function onDoorChange(index,open,{release=true}={}){const s=states[index];s.opened=open;if(open)s.openCount++;if(open&&release&&SPILL_BOXES.has(index)&&!s.spilled&&!pending.has(index))pending.set(index,{time:0});if(!open&&!s.spilled)pending.delete(index);persist();emit();}
+ function onDoorChange(index,open,{release=true}={}){const s=states[index];s.opened=open;if(open)s.openCount++;if(open&&release&&!physicalMailOnly&&SPILL_BOXES.has(index)&&!s.spilled&&!pending.has(index))pending.set(index,{time:0});if(!open&&!s.spilled)pending.delete(index);persist();emit();}
  function doorTarget(index,target){const p=pending.get(index);return p&&p.time<.18?boxes[index].rest-.035:target;}
- function flex(a,t,amount){const attr=a.mesh.geometry.attributes.position,uv=a.mesh.geometry.attributes.uv,src=a.original;const amp=a.profile.flutter*amount;for(let i=0;i<attr.count;i++){const u=uv.getX(i),v=uv.getY(i);let bend=Math.sin(u*Math.PI)*Math.sin(v*5+t*(a.kind==='receipt'?19:12))*amp;if(a.kind==='folded')bend+=Math.abs(u-.5)*.065*amount;attr.setZ(i,src[i*3+2]+bend);}attr.needsUpdate=true;a.mesh.geometry.computeVertexNormals();}
+ function flex(a,t,amount){const attr=a.mesh.geometry.attributes.position,uv=a.mesh.geometry.attributes.uv,src=a.original;const amp=a.profile.flutter*amount;for(let i=0;i<attr.count;i++){const u=uv.getX(i),v=uv.getY(i);let bend=Math.sin(u*Math.PI)*Math.sin(v*5+t*(a.kind==='receipt'?19:12))*amp;if(a.kind==='folded')bend+=Math.abs(u-.5)*.065*amount;attr.setZ(i,src[i*3+2]+bend);}finiteGeometry(a.mesh.geometry,src,.08);attr.needsUpdate=true;a.mesh.geometry.computeVertexNormals();}
  function finish(a){flex(a,a.age,0);a.mesh.position.copy(a.target);a.mesh.rotation.copy(a.targetRotation);if(a.placement==='door')boxes[a.index].pivot.add(a.mesh);
   const record=serialize(a);const slot=states[a.index].fallenMail.findIndex(r=>r.id===a.id);states[a.index].fallenMail[slot]=record;settled.push({mesh:a.mesh,index:a.index,id:a.id,placement:a.placement});a.done=true;persist();}
  function step(dt){tick+=dt;for(const [index,p]of pending){p.time+=dt;const b=boxes[index];if(!b.open){pending.delete(index);continue;}if(p.time>=.35&&-b.angle>.52){pending.delete(index);releaseBatch(index);}}

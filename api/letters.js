@@ -9,7 +9,7 @@ export default async function handler(req,res){
   if(req.method==='GET'){send(200,publicState((await readState()).state));return;}
   if(req.method!=='POST'){res.setHeader('Allow','GET, POST');send(405,{error:'Method not allowed.'});return;}
   const origin=req.headers.origin;
-  const allowed=new Set(['https://unplannedwall.alilinlab.com','https://unplannedwall.vercel.app',...(process.env.VERCEL_URL?[`https://${process.env.VERCEL_URL}`]:[]),...(process.env.NODE_ENV!=='production'&&!process.env.VERCEL?['http://127.0.0.1:4173','http://localhost:4173']:[])]);
+  const allowed=new Set(['https://unplannedwall.alilinlab.com','https://unplannedwall.vercel.app',...(process.env.VERCEL_URL?[`https://${process.env.VERCEL_URL}`]:[]),...(process.env.NODE_ENV!=='production'&&!process.env.VERCEL?['http://127.0.0.1:4173','http://localhost:4173','http://127.0.0.1:4174','http://localhost:4174']:[])]);
   if(!origin||!allowed.has(origin))throw new LetterError(403,'This letter must be sent from the wall.');
   if(!/^application\/json(?:;|$)/i.test(req.headers['content-type']||''))throw new LetterError(415,'Use JSON.');
   if(Number(req.headers['content-length'])>4096)throw new LetterError(413,'Letter is too large.');

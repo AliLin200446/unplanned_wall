@@ -57,9 +57,8 @@ export function createLetterReader({scene,camera,renderer,boxes,matter,wall,redu
  function update(dt){
   updateAccess();if(mode==='idle')return;phase+=dt;const s=dimensions();desk.style.setProperty('--paper-w',s.w+'px');desk.style.setProperty('--paper-h',s.h+'px');paper.style.left=(s.x-s.w/2)+'px';paper.style.top=(s.y-s.h/2)+'px';
   if(mode==='extracting'){
-   const t=reduced?1:smooth(phase/1.5),forward=selected.source.position.clone().add(new THREE.Vector3(0,.03,.75)),target=targetInWorld();
-   if(t<.3)selected.mesh.position.lerpVectors(selected.source.position,forward,smooth(t/.3));else selected.mesh.position.lerpVectors(forward,target.position,smooth((t-.3)/.7));
-   selected.mesh.quaternion.slerpQuaternions(selected.source.quaternion,camera.quaternion,smooth((t-.2)/.8));selected.mesh.scale.set(THREE.MathUtils.lerp(1,target.scaleX,smooth((t-.3)/.7)),THREE.MathUtils.lerp(1,target.scaleY,smooth((t-.3)/.7)),1);
+   const t=reduced?1:Math.min(1,phase/2.2),route=selected.route,target=targetInWorld();
+   if(t<.2){selected.mesh.position.lerpVectors(selected.source.position,route.inside,smooth(t/.2));selected.mesh.quaternion.slerpQuaternions(selected.source.quaternion,route.quaternion,smooth(t/.2));}else if(t<.6){selected.mesh.position.lerpVectors(route.inside,route.outside,smooth((t-.2)/.4));selected.mesh.quaternion.copy(route.quaternion);}else{const q=smooth((t-.6)/.4);selected.mesh.position.lerpVectors(route.outside,target.position,q);selected.mesh.quaternion.slerpQuaternions(route.quaternion,camera.quaternion,q);selected.mesh.scale.set(THREE.MathUtils.lerp(1,target.scaleX,q),THREE.MathUtils.lerp(1,target.scaleY,q),1);}
    if(t===1)showPaper();
   }else if(mode==='unfolding'){
    const t=reduced?2:phase;folds.querySelector('.top').style.transform=`translateZ(3px) rotateX(${-180*(1-smooth(t/.7))}deg)`;folds.querySelector('.bottom').style.transform=`translateZ(1px) rotateX(${180*(1-smooth((t-.65)/.7))}deg)`;if(t>=1.4)showContent();
@@ -70,9 +69,8 @@ export function createLetterReader({scene,camera,renderer,boxes,matter,wall,redu
  if(t===1){const target=targetInWorld();desk.hidden=true;selected.mesh.visible=true;selected.mesh.position.copy(target.position);selected.mesh.quaternion.copy(camera.quaternion);selected.mesh.scale.set(target.scaleX,target.scaleY,1);matter.remove(selected.id);scene.add(selected.mesh);setMode('pinning');wall.pin(selected,pinResponse.wall,()=>{selected=null;record=null;pinResponse=null;setMode('idle');status.textContent='The letter is pinned to the wall.';onRefresh();});}
  }else if(mode==='returning'){
 
-   const t=reduced?1:smooth(phase/1.6),target=selected.target; if(innerWidth<600)window.scrollTo(0,THREE.MathUtils.lerp(selected.startScroll,selected.targetScroll,t));const clear=target.position.clone().add(new THREE.Vector3(0,.02,.8));
-   if(t<.72)selected.mesh.position.lerpVectors(selected.returnStart,clear,smooth(t/.72));else selected.mesh.position.lerpVectors(clear,target.position,smooth((t-.72)/.28));
-   selected.mesh.quaternion.slerpQuaternions(selected.returnQuat,target.quaternion,t);selected.mesh.scale.lerpVectors(selected.returnScale,new THREE.Vector3(1,1,1),t);if(t===1)finish();
+   const t=reduced?1:Math.min(1,phase/2.2),target=selected.target; if(innerWidth<600)window.scrollTo(0,THREE.MathUtils.lerp(selected.startScroll,selected.targetScroll,t));const route=target.route||selected.route;
+   if(t<.4){const q=smooth(t/.4);selected.mesh.position.lerpVectors(selected.returnStart,route.outside,q);selected.mesh.quaternion.slerpQuaternions(selected.returnQuat,route.quaternion,q);selected.mesh.scale.lerpVectors(selected.returnScale,new THREE.Vector3(1,1,1),q);}else if(t<.8){selected.mesh.position.lerpVectors(route.outside,route.inside,smooth((t-.4)/.4));selected.mesh.quaternion.copy(route.quaternion);}else{selected.mesh.position.lerpVectors(route.inside,target.position,smooth((t-.8)/.2));selected.mesh.quaternion.slerpQuaternions(route.quaternion,target.quaternion,smooth((t-.8)/.2));}if(t===1)finish();
   }
  }
  return {update,get active(){return mode!=='idle';}};

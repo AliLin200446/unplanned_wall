@@ -1,3 +1,4 @@
+import {fitInterior} from './paper-physics.js';
 import * as THREE from './vendor/three.module.js';
 // Quantities follow delivery history, not a repeating row or column pattern.
 export const mailCounts=[2,6,1,8,4,2,5,7,0,4,1,10,6,8,2];
@@ -23,8 +24,8 @@ function printing(code){if(cache.has(code))return cache.get(code);const c=docume
 function sheet(w,h,code,age,bow=.013,dog=false){const nx=10,ny=14,front=[],uv=[],indices=[];
  for(let iy=0;iy<=ny;iy++)for(let ix=0;ix<=nx;ix++){const u=ix/nx,v=iy/ny;let x=(u-.5)*w,y=(v-.5)*h;
  if(code%7===0&&ix===nx)x-=.004*(iy%3);
- let z=bow*Math.sin(u*Math.PI)*Math.sin(v*Math.PI*.65);
- if(dog&&u>.74&&v>.76){const fold=Math.max(0,u+v-1.77);z+=fold*.15;y-=fold*.09;}
+ let z=Math.min(bow,.001)*Math.sin(u*Math.PI)*Math.sin(v*Math.PI*.65);
+ if(dog&&u>.74&&v>.76){const fold=Math.max(0,u+v-1.77);z+=fold*.001;y-=fold*.009;}
  front.push(x,y,z);uv.push(u,v);}
  const count=front.length/3,positions=[...front,...front.map((n,i)=>i%3===2?n-.0022:n)],uvs=[...uv,...uv];
  for(let y=0;y<ny;y++)for(let x=0;x<nx;x++){let a=y*(nx+1)+x,b=a+1,d=a+nx+1,e=d+1;indices.push(a,b,e,a,e,d,a+count,e+count,b+count,a+count,d+count,e+count);}
@@ -49,20 +50,20 @@ export function createMailboxMail(base,index){const count=mailCounts[index],hist
   const xLimit=(1.49-w*Math.cos(rz)-h*Math.abs(Math.sin(rz)))/2;
   let x=history.side*Math.max(.01,xLimit-.014)*(j%3===0?.65:1);
   const y=-.714+(h*Math.cos(rz)+w*Math.abs(Math.sin(rz)))/2+(j%3)*.006;
-  const z=.279+(count===1?.025:j*(history.hero?.0115:.13/Math.max(1,count-1)));
-  const m=sheet(w,h,code,age,.010+(j%3)*.006,j%4===0);m.position.set(x,y,z);m.rotation.set(0,history.side*.017,rz);group.add(m);
-  moving.push({id:'body-'+j,role:'body',order:j,width:w,height:h,mesh:m,z,y,rx:m.rotation.x,response:j>=count-3?(.55+(j%3)*.20):.10});
+  const z=.279+j*.008;
+  const m=sheet(w,h,code,age,.010+(j%3)*.006,j%4===0);m.position.set(x,y,z);m.rotation.set(0,0,rz);group.add(m);fitInterior(m,base);
+  moving.push({id:'body-'+j,role:'body',order:j,width:w,height:h,mesh:m,z:m.position.z,y:m.position.y,rx:m.rotation.x,response:j>=count-3?(.55+(j%3)*.20):.10});
   // A folded-back leaflet stays attached along its lower crease.
-  if((history.hero&&j===7)||(index===3&&j===4)){const flap=sheet(w*.91,h*.28,code,age,.019,true);flap.position.set(x,y+h*.36,z+.018);flap.rotation.set(-.40,0,rz);group.add(flap);moving.push({id:'fold-'+j,role:'fold',order:j,width:w*.91,height:h*.28,mesh:flap,z:flap.position.z,y:flap.position.y,rx:-.40,response:1});}
+  if((history.hero&&j===7)||(index===3&&j===4)){const flap=sheet(w*.91,h*.28,code,age,.019,true);flap.position.set(x,y+h*.36,z+.018);flap.rotation.set(0,0,rz);group.add(flap);fitInterior(flap,base);moving.push({id:'fold-'+j,role:'fold',order:j,width:w*.91,height:h*.28,mesh:flap,z:flap.position.z,y:flap.position.y,rx:0,response:1});}
  }
  // Five deliveries have caught on the slot lip. The strip bends around it.
  const caught={1:{w:.68,length:.42,n:1},3:{w:.87,length:.35,n:2},7:{w:1.10,length:.31,n:3},11:{w:.90,length:.52,n:2},14:{w:.62,length:.37,n:1}}[index];
  if(caught){for(let n=0;n<caught.n;n++){const w=caught.w-n*.026,code=(index+n*7)%30,mesh=sheet(w,caught.length,code,.20+n*.17,.006,n===0);const p=mesh.geometry.attributes.position;
  // Top enters the cavity; middle rides the lip; free end turns outward/down.
- for(let k=0;k<p.count;k++){const v=mesh.geometry.attributes.uv.getY(k);let yy,zz;if(v<.42){yy=.40+v/.42*.21;zz=.355+v/.42*.083;}else if(v<.67){yy=.61+(v-.42)/.25*.071;zz=.438+(v-.42)/.25*.072;}else{yy=.681-(v-.67)/.33*(index===11?.14:.055);zz=.510+(v-.67)/.33*.079;}p.setY(k,yy+n*.005);p.setZ(k,zz+(k>=p.count/2?-.0022:0)+n*.006);}
- p.needsUpdate=true;mesh.geometry.computeVertexNormals();mesh.position.x=index===7?.13:-.15+(n*.008);mesh.rotation.z=index===14?-.045:index===3?.035:0;group.add(mesh);moving.push({id:'slot-'+n,role:'slot',width:w,height:caught.length,mesh,z:0,y:0,rx:0,response:.18});}}
- return {group,moving,relax:0,velocity:0};
+ for(let k=0;k<p.count;k++){const v=mesh.geometry.attributes.uv.getY(k);p.setY(k,.674+n*.006+Math.sin(v*Math.PI)*.004-(k>=p.count/2?.0022:0));p.setZ(k,.335+v*caught.length);}
+ p.needsUpdate=true;mesh.geometry.computeVertexNormals();mesh.position.x=index===7?.13:-.15+(n*.008);mesh.rotation.z=0;group.add(mesh);moving.push({id:'slot-'+n,role:'slot',width:w,height:caught.length,mesh,z:0,y:0,rx:0,response:.18});}}
+ return {group,moving,base,relax:0,velocity:0};
 }
 export function updateMailboxMail(mail,openAmount,dt,reduced){const target=Math.max(0,Math.min(1,openAmount));if(reduced)mail.relax=target;else{mail.velocity+=(target-mail.relax)*48*dt;mail.velocity*=Math.exp(-12*dt);mail.relax+=mail.velocity*dt;}
- for(const item of mail.moving){if(item.fallen)continue;const a=mail.relax*item.response;item.mesh.position.z=item.z+a*.006;item.mesh.position.y=item.y-a*.003;item.mesh.rotation.x=item.rx-a*.012;}
+ for(const item of mail.moving){if(item.fallen)continue;const a=mail.relax*item.response;item.mesh.position.z=item.z;item.mesh.position.y=item.y;item.mesh.rotation.x=item.rx;if(item.role!=='slot')fitInterior(item.mesh,mail.base);}
 }

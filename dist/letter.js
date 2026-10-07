@@ -1,3 +1,5 @@
+import {paperGeometry,feedSlot,SLOT_PATH_LENGTH} from './paper-physics.js';
+import {letterForm} from './letter-forms.js';
 import * as THREE from './vendor/three.module.js';
 import {createLetterMatter} from './letter-matter.js';
 import {createWallLetters} from './wall-letters.js';
@@ -43,11 +45,11 @@ export function createLetterExperience({scene,camera,renderer,boxes,board,reduce
    const response=await r.json();if(!r.ok)throw Error(response.error||'Delivery failed.');
    pendingLetter=response.letter;matter.sync(response,response.letter.id);
    const index=Number(response.letter.mailboxId)-1,b=boxes[index];scene.updateMatrixWorld(true);
-   const {start,scale,scaleY}=positionFlight(),mesh=new THREE.Mesh(new THREE.PlaneGeometry(1.03,.39,10,4),matter.material);mesh.position.copy(start);mesh.quaternion.copy(camera.quaternion);mesh.scale.set(scale,scaleY,1);mesh.castShadow=true;scene.add(mesh);
-   const slot=b.base.localToWorld(new THREE.Vector3(.04,.65,.91));const projected=slot.clone().project(camera),canvasRect=renderer.domElement.getBoundingClientRect();
+   const launch=positionFlight(),start=launch.start,form=letterForm(response.letter.id,response.mailboxes[index].letters.find(l=>l.id===response.letter.id)?.createdAt),scale=launch.scale*1.03/form.width,scaleY=launch.scaleY*.39/form.height,mesh=new THREE.Mesh(paperGeometry(form.width,form.height),matter.material);mesh.position.copy(start);mesh.quaternion.copy(camera.quaternion);mesh.scale.set(scale,scaleY,1);mesh.castShadow=true;scene.add(mesh);
+   const slot=b.base.localToWorld(new THREE.Vector3(0,.674,1.10+form.height/2));const projected=slot.clone().project(camera),canvasRect=renderer.domElement.getBoundingClientRect();
    const targetY=canvasRect.top+scrollY+(-projected.y*.5+.5)*canvasRect.height;
    const targetScroll=Math.max(0,Math.min(document.documentElement.scrollHeight-innerHeight,targetY-innerHeight*.45));
-   flight={mesh,start,scale,scaleY,slot,index,startScroll:scrollY,targetScroll,age:0,letter:response.letter,original:mesh.geometry.attributes.position.array.slice()};
+   flight={mesh,form,startQuaternion:mesh.quaternion.clone(),clear:b.base.localToWorld(new THREE.Vector3(0,.674,3.3)),start,scale,scaleY,slot,index,startScroll:scrollY,targetScroll,age:0,letter:response.letter,original:mesh.geometry.attributes.position.array.slice()};
    paper.hidden=true;setMode('delivering');sound('rustle','folded',.075);
   }catch(e){setMode('failed');note.textContent='DELIVERY FAILED';note.title='';const detail=document.createElement('span');detail.style.display='block';detail.style.letterSpacing='0';detail.textContent=['TimeoutError','TypeError'].includes(e.name)?'Your letter is still here. Try again.':e.message;note.appendChild(detail);send.textContent='TRY AGAIN';send.disabled=false;send.focus({preventScroll:true});}
  });
@@ -70,23 +72,17 @@ export function createLetterExperience({scene,camera,renderer,boxes,board,reduce
    if(p>=1.55){setMode('folded');seal.hidden=false;send.disabled=false;send.textContent='SEND';note.textContent='';el('letter-edit').hidden=false;send.focus({preventScroll:true});sound('rustle','folded',.025);}
   }
   if(flight){
-   const f=flight;f.age+=dt;const t=reduced?3.6:f.age;
+   const f=flight;f.age+=dt;const t=reduced?4.7:f.age;
    if(innerWidth<600)window.scrollTo(0,THREE.MathUtils.lerp(f.startScroll,f.targetScroll,smooth(t/1.8)));
    if(!reduced){attention.x=THREE.MathUtils.clamp(f.slot.x-camera.position.x,-3,3)*.025*smooth(t);attention.y=THREE.MathUtils.clamp(f.slot.y-camera.position.y,-3,3)*.025*smooth(t);}
-   if(t<.3){f.mesh.position.copy(f.start).addScaledVector(camera.getWorldDirection(new THREE.Vector3()),-.12*Math.sin(t/.3*Math.PI));}
-   else if(t<2.05){const q=smooth((t-.3)/1.75);f.mesh.position.lerpVectors(f.start,f.slot,q);f.mesh.position.y+=Math.sin(q*Math.PI)*.25;f.mesh.scale.set(THREE.MathUtils.lerp(f.scale,1,q),THREE.MathUtils.lerp(f.scaleY,1,q),1);f.mesh.rotation.set(-1.35*q,.04*Math.sin(q*Math.PI),-.045*q);}
-   else{
-    const q=smooth((t-2.05)/1.3),item=matter.papers.get(f.letter.id),end=item.mesh.getWorldPosition(new THREE.Vector3());
-    const inside=boxes[f.index].base.localToWorld(new THREE.Vector3(.04,.65,.245));
-    const enter=smooth((t-2.05)/.75),settle=smooth((t-2.8)/.55);
-    f.mesh.position.lerpVectors(f.slot,inside,enter);if(settle>0)f.mesh.position.lerpVectors(inside,end,settle);
-    f.mesh.position.z+=Math.sin(enter*Math.PI)*.009;f.mesh.rotation.set(-1.35+settle*1.29,.04*(1-settle),-.045*(1-settle));f.mesh.scale.set(THREE.MathUtils.lerp(1,item.form.width/1.03,settle),THREE.MathUtils.lerp(1,item.form.height/.39,settle),1);
-    const p=f.mesh.geometry.attributes.position;for(let j=0;j<p.count;j++)p.setZ(j,f.original[j*3+2]+Math.sin(p.getX(j)*4)*Math.sin(q*Math.PI)*.07);p.needsUpdate=true;
-    if(!f.contact){f.contact=true;matter.compress(f.index);sound('contact','folded',.045);}
-   }
-   if(t>=3.4){matter.reveal(f.letter.id);scene.remove(f.mesh);f.mesh.geometry.dispose();flight=null;pendingLetter=null;message.value='';link.value='';allowPinToWall=false;el('keep-mailbox').setAttribute('aria-pressed','true');el('may-pin').setAttribute('aria-pressed','false');id=crypto.randomUUID();status.textContent='Your letter has been left in the building.';setMode('delivered');restUntil=time+7;}
+   const base=boxes[f.index].base,flat=base.getWorldQuaternion(new THREE.Quaternion()).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI/2,0,0)));
+   if(t<1.3){const q=smooth(t/1.3);f.mesh.position.lerpVectors(f.start,f.clear,q);f.mesh.quaternion.slerpQuaternions(f.startQuaternion,flat,q);f.mesh.scale.set(THREE.MathUtils.lerp(f.scale,1,q),THREE.MathUtils.lerp(f.scaleY,1,q),1);}
+   else if(t<2.1){f.mesh.position.lerpVectors(f.clear,f.slot,smooth((t-1.3)/.8));f.mesh.quaternion.copy(flat);f.mesh.scale.set(1,1,1);}
+   else if(t<4.1){if(!f.feeding){f.feeding=true;base.add(f.mesh);f.mesh.position.set(0,0,0);f.mesh.rotation.set(0,0,0);f.mesh.scale.set(1,1,1);}feedSlot(f.mesh,f.form.width,f.form.height,SLOT_PATH_LENGTH*smooth((t-2.1)/2));if(!f.contact){f.contact=true;sound('contact','folded',.03);}}
+   else {if(!f.feeding){f.feeding=true;base.add(f.mesh);f.mesh.position.set(0,0,0);f.mesh.rotation.set(0,0,0);f.mesh.scale.set(1,1,1);}feedSlot(f.mesh,f.form.width,f.form.height,SLOT_PATH_LENGTH);const item=matter.papers.get(f.letter.id),q=smooth((t-4.1)/.5),p=f.mesh.geometry.attributes.position;item.mesh.updateMatrix();for(let j=0;j<p.count;j++){const v=new THREE.Vector3((f.mesh.geometry.attributes.uv.getX(j)-.5)*f.form.width,(f.mesh.geometry.attributes.uv.getY(j)-.5)*f.form.height,j<p.count/2?0:-.0022).applyMatrix4(item.mesh.matrix);p.setXYZ(j,THREE.MathUtils.lerp(p.getX(j),v.x,q),THREE.MathUtils.lerp(p.getY(j),v.y,q),THREE.MathUtils.lerp(p.getZ(j),v.z,q));}p.needsUpdate=true;f.mesh.geometry.computeVertexNormals();}
+   if(t>=4.6){matter.reveal(f.letter.id);f.mesh.removeFromParent();f.mesh.geometry.dispose();flight=null;pendingLetter=null;message.value='';link.value='';allowPinToWall=false;el('keep-mailbox').setAttribute('aria-pressed','true');el('may-pin').setAttribute('aria-pressed','false');id=crypto.randomUUID();status.textContent='Your letter has been left in the building.';setMode('delivered');restUntil=time+7;}
   }
   if(mode==='delivered'&&time>restUntil){setMode('rest');paper.hidden=false;pickup.hidden=false;writing.hidden=true;folds.hidden=true;seal.hidden=true;link.hidden=true;el('letter-attach').hidden=false;paper.classList.add('paper-face');validate();}
  }
- return {update,attention,wall,onDoorChange(index,open){matter.onDoorChange(index,open);if(open)refresh();},get active(){return wall.active||reader.active||!['rest','delivered'].includes(mode);}};
+ return {update,attention,wall,collisionDebug:{collisions:matter.collisions,papers:matter.papers},doorTarget:(i,t)=>matter.doorTarget(i,t),onDoorChange(index,open){matter.onDoorChange(index,open);if(open)refresh();},get active(){return wall.active||reader.active||!['rest','delivered'].includes(mode);}};
 }
