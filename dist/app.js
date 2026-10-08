@@ -62,7 +62,7 @@ for(let i=0;i<15;i++){
  for(const [sx,sy]of[[.07,.59],[1.46,-.60]]){const screw=new THREE.Mesh(new THREE.CylinderGeometry(.013,.013,.011,10),i===4?rust:steel);screw.rotation.x=Math.PI/2;screw.position.set(sx,sy,.025);pivot.add(screw);}
  const wear=plane(pivot,.17,.2,1.36,-.26,.020,mat('#756857',{transparent:true,opacity:Math.min(data[i].openCount*.004,.05),depthWrite:false}));
  const nameTexture=tex(canvas(320,80,(c,w,h)=>{c.fillStyle='#d9cfb6';c.fillRect(0,0,w,h);c.fillStyle='#292e26';c.font='32px monospace';c.fillText(people[i].name,17,53);c.fillStyle='rgba(101,77,51,.10)';for(let j=0;j<170;j++)c.fillRect((j*127)%w,(j*43)%h,2,1);}));
- const nameTag=tornSheet(.76,.168,1900+i,nameTexture,'#ffffff',.008);nameTag.position.set(.77,-.07,.038);nameTag.rotation.z=[-.027,.016,-.007][i%3];pivot.add(nameTag);
+ const nameTag=tornSheet(.76,.168,1900+i,nameTexture,'#ffffff',.008);nameTag.position.set(.77,[0,5,7,13].includes(i)?-.21:-.07,.038);nameTag.rotation.z=[-.027,.016,-.007][i%3];pivot.add(nameTag);
  const button=document.createElement('button');button.textContent=addresses[i];button.setAttribute('aria-label',`Open mailbox ${addresses[i]}, ${people[i].name}`);button.setAttribute('aria-expanded','false');button.addEventListener('click',()=>toggle(i));button.addEventListener('focus',()=>hovered=i);button.addEventListener('blur',()=>hovered=-1);document.querySelector('#access').appendChild(button);
  const initial=i===11?-.14:i===3?-.028:i===4?-.033:0;boxes.push({mail,base,pivot,label,metalMat,wear,button,open:false,angle:initial,velocity:0,target:initial,rest:initial});
 }
