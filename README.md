@@ -22,24 +22,32 @@ Overfilled real-mail compartments release bounded batches when fully open. Falle
 
 Run `node tests/spill.mjs` to verify release timing, cancellation, one-time behavior, accumulation, restoration, and reduced motion.
 
+## People and their material
+
+Each of the 15 mailboxes belongs to a stable prototype person. Ali Lin remains at 69-2 (mailbox `8`). Names are small secondary paper strips; the approved environment is unchanged. `dist/people.js` defines the identities. `server/directory.js` performs an idempotent, conditional-write migration: it preserves all existing letters, addresses, moderation and pin consent, adds prototype associations and trusted owner artifacts, and records `directoryVersion: 1`. Seed data is fictional prototype material, not professional claims. There is no public owner-content creation endpoint.
+
+Ali has eight seeded objects: a visual print, interface sheet, contact sheet, personal note, three visitor letters and a mock collaboration envelope. Other people have deliberately unequal mixes, including link cards and a stapled notebook. Objects retain source (`OWNER`/`VISITOR`), media type and person/mailbox provenance. Original visual studies are rendered by `dist/artifact-art.js`; project links remain optional and validated.
+
+Pick the exposed front object to inspect it. **LOOK UNDERNEATH** sets it aside in a held stack and exposes the next object. Only the front of that held stack is reachable. Closing a mailbox returns inspected material through its clearance corridor before closing the door. Owner prints/cards are read on their physical surface, while notes unfold as before.
+
 ## Send a letter
 
-Pick up the unused paper at the lower edge of the wall. Write up to 280 Unicode characters, optionally attach one http/https link, fold, then send. The folded sheet remains with you if delivery fails; retries reuse its delivery ID. The API chooses a mailbox using weighted real occupancy. A confirmed save becomes a folded WebGL sheet, including after refresh. Crowded stacks can spill without deleting their records. The original found mail remains part of the approved environment.
+Open a person’s mailbox, then pick **LEAVE A NOTE** or **WORK TOGETHER** from the two loose stationery sheets. The paper identifies the fixed recipient and building address. Write up to 280 Unicode characters, optionally attach one http/https link, fold, then send. The folded sheet remains with you if delivery fails; retries reuse its delivery ID. The API validates the fixed recipient. A full mailbox refuses delivery rather than redirecting it. A confirmed save becomes a folded WebGL sheet, including after refresh. Crowded stacks can spill without deleting their records. The original found mail remains part of the approved environment.
 
 ### Storage and deployment
 
 The static site still deploys from `dist/`. Vercel additionally runs `api/letters.js`; no frontend framework or build step is needed. `@vercel/blob` is the only server dependency. A **private** Vercel Blob store connected to the existing `unplanned_wall` project supplies `BLOB_READ_WRITE_TOKEN` server-side.
 
-For this bounded MVP, one private document stores at most 24 letters per mailbox (360 total), plus short-lived rate-limit metadata. Uncached reads and conditional ETag writes make mailbox assignment, occupancy, idempotency, and rate limits one atomic operation. Conflicting writes retry with jitter; a full wall refuses new deliveries. No stored letters expire or get deleted when they spill. Production and development/preview use separate documents. Larger capacity or high write volume should migrate this small document store to a transactional database.
+For this bounded MVP, one private document stores at most 24 letters per mailbox (360 total), plus short-lived rate-limit metadata. Uncached reads and conditional ETag writes make mailbox assignment, occupancy, idempotency, and rate limits one atomic operation. Conflicting writes retry with jitter; a full destination refuses new deliveries. No stored letters expire or get deleted when they spill. Production and development/preview use separate documents. Larger capacity or high write volume should migrate this small document store to a transactional database.
 
-`GET /api/letters` exposes mailbox capacity, opaque IDs, and creation times for visible papers. Message bodies and links are retrieved individually on pickup; credentials and rate-limit metadata stay private. `POST` validates size, message, URL, and origin. It limits each daily-hashed network address to five new letters per hour, at least 15 seconds apart; no raw IP is stored. This is lightweight abuse protection, not bot-proofing. Reading requires selecting a physical letter; no feed or message list exists.
+`GET /api/letters` exposes stable people, mailbox capacity and safe physical-object metadata for visible papers. Message bodies and links are retrieved individually on pickup; credentials and rate-limit metadata stay private. `POST` validates size, message, URL, and origin. It limits each daily-hashed network address to five new letters per hour, at least 15 seconds apart; no raw IP is stored. This is lightweight abuse protection, not bot-proofing. Reading requires selecting a physical letter; no feed or message list exists.
 
 ### Development and checks
 
 1. `npm ci`
 2. `vercel env pull .env.local --environment development` from the linked project (never commit this file).
 3. `npm run dev` — serves the artwork and real API at `http://127.0.0.1:4173` using the private development collection.
-4. `npm test` — validation, privacy projection, rate limits, capacity, weighted assignment, real-paper restoration, and original spill regression tests.
+4. `npm test` — validation, privacy projection, rate limits, capacity, recipient assignment, real-paper restoration, and original spill regression tests.
 5. `node --env-file=.env.local tests/letters-storage.mjs` — optional real-storage concurrency and idempotency test; removes only its own test records and refuses production.
 
 The visual browser checks cover write/fold/send, Unicode limits, unsafe links, network-failure recovery, refresh persistence, and phone-sized/reduced-height layouts. A real mobile keyboard still merits on-device verification.
@@ -50,7 +58,7 @@ Open a door and pick an exposed piece of real mail. It slides out into the foreg
 
 The ID determines one of six restrained paper forms. Age changes tint slowly over six years. Session-only handling remembers order, tiny offsets, and bent folds. Closed compartments use shared low-detail thin shells; only reachable or fallen papers use detailed geometry. The approved exterior found-paper details remain, while open interiors hide the decorative mail and show the real visible records; an empty mailbox is dark. The original decorative spill no longer creates fake readable objects. Real papers use the existing physical sound and spill language.
 
-Discovery metadata contains only IDs and creation times. Message text is fetched on pickup with `POST /api/letters` and `{ "action": "read", "id": "..." }`; it is not inserted into the accessible reading surface until unfolding. No permalink or indexed letter page exists. Text is inserted with `textContent`. Attached URLs are checked server-side and client-side, with `target="_blank" rel="noopener noreferrer"`.
+Discovery metadata contains IDs, dates, person/source/media identity, artwork keys and sealed/mock flags; it contains no visitor text, contact information or links. Message text is fetched on pickup with `POST /api/letters` and `{ "action": "read", "id": "..." }`; it is not inserted into the accessible reading surface until unfolding. No permalink or indexed letter page exists. Text is inserted with `textContent`. Attached URLs are checked server-side and client-side, with `target="_blank" rel="noopener noreferrer"`.
 
 Records support `status: "visible" | "hidden" | "pending"`. New letters default to visible; legacy records without a status remain visible. Hidden/pending/unknown statuses are excluded from metadata and content requests. Status changes require trusted server-side storage access; there is deliberately no public moderation mutation endpoint or moderation UI. This is moderation support, not automatic content screening.
 
@@ -75,3 +83,13 @@ Delivery follows an arc-length slot guide: flatten outside the structure, enter 
 Development inspection: `PORT=4174 npm run dev`, then open `http://127.0.0.1:4174/?collisions`. The local-only `/__debug/paper-collisions.js` overlay shows 150 solid volumes, paper bounds, active/sleep counts and intersections. It is outside the production output directory and never imported on production hosts. Port 4173 remains the default when unused.
 
 `npm test` includes all 15 compartments at 0/1/5/12/24 letters; opening, spills and rapid closure; settled and paper-to-paper contacts; finite triangle sizes under slot bending; and full-sheet extraction/return clearance. Geometry deformation is bounded; slot feeding cannot extend a sheet's indexed edges arbitrarily.
+
+### Private collaboration letters
+
+**WORK TOGETHER** accepts a message and one optional email/http(s) contact link. The server forces `sourceType: VISITOR`, `visibility: private`, `mediaType: COLLABORATION`, canonical person ID, and `allowPinToWall: false`; client overrides cannot make the message public. Known-ID read and pin requests reject private records. Wall projection independently excludes them. Delivery/list responses expose only the envelope’s safe physical metadata. Message/contact details remain in private Blob storage.
+
+No authentication is implemented. Accordingly **nobody can read real collaboration messages through the public site**, including the owner until authenticated owner access is built. The writing paper explains this before sending. The seeded mock envelope demonstrates the form and stays sealed. Future owner access must authenticate the viewer and verify mailbox ownership server-side; never add a client-selected owner flag to the public read endpoint.
+
+Public notes retain explicit KEEP IN MAILBOX / MAY BE PINNED consent and visible/pending/hidden moderation. Rate limiting, origin validation, sanitization, conditional writes, and retry identity include recipient, intent and contact. No messages are emailed or sent to an outside inbox.
+
+Run `npm test` for directory migration, fixed-recipient capacity/replay, collaboration privacy, consent, moderation and mixed-media collision/handling regressions. `PORT=4279 npm run dev` is useful when the default port is occupied. Preview/development data remains separate from production.

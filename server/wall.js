@@ -1,4 +1,4 @@
-import {LetterError,isVisible,readLetter} from './letters.js';
+import {LetterError,isVisible,isPublic,readLetter} from './letters.js';
 import {letterForm,letterHash} from '../dist/letter-forms.js';
 const DAY=86400000;
 const wallItem=l=>['pinned','covered','removed'].includes(l.wallState);
@@ -7,11 +7,11 @@ export function wallLife(l,now=Date.now()){
  return {age:Math.min(1,years/8),remnant:years>=12,ghost:years>=20||l.wallState==='removed'};
 }
 export function publicWall(state,now=Date.now()){
- return state.letters.filter(l=>wallItem(l)&&l.allowPinToWall===true&&isVisible(l)).map(l=>({id:l.id,createdAt:l.createdAt,pinnedAt:l.pinnedAt,wallX:l.wallX,wallY:l.wallY,rotation:l.rotation,layer:l.layer,width:l.width,height:l.height,attachmentType:l.attachmentType,wallState:l.wallState,...wallLife(l,now),...(!wallLife(l,now).ghost?readLetter(state,l.id):{})}));
+ return state.letters.filter(l=>wallItem(l)&&l.allowPinToWall===true&&isVisible(l)&&isPublic(l)).map(l=>({id:l.id,createdAt:l.createdAt,pinnedAt:l.pinnedAt,wallX:l.wallX,wallY:l.wallY,rotation:l.rotation,layer:l.layer,width:l.width,height:l.height,attachmentType:l.attachmentType,wallState:l.wallState,...wallLife(l,now),...(!wallLife(l,now).ghost?readLetter(state,l.id):{})}));
 }
 const intersection=(a,b)=>Math.max(0,Math.min(a.wallX+a.width/2,b.wallX+b.width/2)-Math.max(a.wallX-a.width/2,b.wallX-b.width/2))*Math.max(0,Math.min(a.wallY+a.height/2,b.wallY+b.height/2)-Math.max(a.wallY-a.height/2,b.wallY-b.height/2));
 export function pinLetter(state,id,now=Date.now()){
- const l=state.letters.find(l=>l.id===id&&isVisible(l));
+ const l=state.letters.find(l=>l.id===id&&isVisible(l)&&isPublic(l));
  if(!l)throw new LetterError(404,'This paper is no longer available.');
  if(l.allowPinToWall!==true)throw new LetterError(403,'This letter must stay in its mailbox.');
  if(wallItem(l))return {id:l.id,alreadyPinned:true,replay:true};
